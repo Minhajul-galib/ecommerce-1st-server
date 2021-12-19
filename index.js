@@ -21,6 +21,7 @@ async function run() {
       const database = client.db('e-commerce-1');
       const productsCollection = database.collection('products');
       const ordersCollection = database.collection('orders');
+      const usersCollection = database.collection('users');
     
       app.get('/ok', (req, res)=>{
           res.send('ok got it e-com')
@@ -42,7 +43,47 @@ async function run() {
 
         res.json(allOrders);
       });
+      
+      
+      //   ALL users SEND!
+      app.post('/users', async (req, res)=>{
+        const users = req.body;
+        const allUsers = await usersCollection.insertOne(users);
 
+        res.json(allUsers);
+      });
+
+      app.put('/users', async (req, res) =>{
+        const user = req.body;
+        const filter = {email: user.email};
+        const option = { upsert: true };
+        const updateDoc = {$set: user};
+        const result = await usersCollection.updateOne(filter, updateDoc, option);
+
+        res.json(result);
+      });
+
+      // Admin update
+      app.put('users/admin', async (req, res)=>{
+        const user = req.body;
+        const filter = {email: user.email};
+        const updateDoc = {$set: {role: 'admin'}};
+        const result = await usersCollection.updateOne(filter, updateDoc);
+
+        res.json(result);
+      });
+
+      app.get('/users/:email', async (req, res) =>{
+        const email = req.params.email;
+        const query = { email:email };
+        const user = await usersCollection.findOne(query);
+
+        let isAdmin = false;
+        if(user?.role === 'admin'){
+          isAdmin = true;
+        }
+        res.json({ admin: isAdmin })
+      });
 
     //   ALL PRODUCT get from database!
       app.get('/products', async (req, res)=>{
@@ -60,6 +101,25 @@ async function run() {
         res.send(getOrders);
       });
 
+      //   ALL ORDERS get from database!
+      app.get('/orders/:email', async (req, res)=>{
+        const email = req.params.email;
+        const query = {email: email};
+        const cursor = ordersCollection.find(query);
+        const myOrder = await cursor.toArray();
+
+        res.send(myOrder);
+      });
+      
+      //   ALL ORDERS get from database!
+      app.get('/orders/:id', async (req, res)=>{
+        const id = req.params.id;
+        const query = {_id: objectId(id)};
+        const product = await ordersCollection.findOne(query);
+
+        res.json(product);
+      });
+
     //   Get product one by one!
     app.get('/products/:id', async (req, res)=>{
         const id = req.params.id;
@@ -68,7 +128,13 @@ async function run() {
         res.json(product);
     });
 
+    // USER!
+    app.get('/users', async (req, res)=>{
+      const cursor = usersCollection.find({});
+      const users = await cursor.toArray();
 
+      res.send(users);
+    })
 
       console.log('Database connected');
     } 
